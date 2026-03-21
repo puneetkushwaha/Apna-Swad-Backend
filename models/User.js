@@ -1,0 +1,35 @@
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+
+const UserSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String }, // Optional for Google Auth users
+  googleId: { type: String },
+  avatar: { type: String },
+  role: { type: String, enum: ['user', 'admin'], default: 'user' },
+  pincode: { type: String },
+  phone: { type: String },
+  altPhone: { type: String },
+  address: {
+    street: { type: String },
+    landmark: { type: String },
+    city: { type: String },
+    state: { type: String },
+    pincode: { type: String }
+  }
+}, { timestamps: true });
+
+// Hash password before saving
+UserSchema.pre('save', async function() {
+  if (!this.isModified('password') || !this.password) return;
+  this.password = await bcrypt.hash(this.password, 10);
+});
+
+// Compare password method
+UserSchema.methods.comparePassword = async function(candidatePassword) {
+  if (!this.password) return false;
+  return await bcrypt.compare(candidatePassword, this.password);
+};
+
+module.exports = mongoose.model('User', UserSchema);

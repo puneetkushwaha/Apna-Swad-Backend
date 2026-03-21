@@ -1,0 +1,86 @@
+{
+  "trackingId": "1234413733",
+  "shipmentDetails": {
+    "data": {
+      "id": 1234413733,
+      "order_id": 1238109257,
+      "channel_id": 10221462,
+      "company_id": 9576633,
+      "invoice_no": "Retail00002",
+      "invoice_date": "2026-03-16 18:25:39",
+      "courier": null,
+      "sr_courier_id": null,
+      "awb": null,
+      "awb_assign_date": null,
+      "pickup_generated_date": null,
+      "pickup_token_number": null,
+      "method": "Standard",
+      "weight": "0.5",
+      "dimensions": "10x10x10",
+      "charges": {
+        "zone": "N/A",
+        "cod_charges": "N/A",
+        "applied_weight_amount": "N/A",
+        "freight_charges": "-",
+        "applied_weight": "N/A",
+        "charged_weight": "",
+        "charged_weight_amount": "N/A",
+        "charged_weight_amount_rto": "N/A",
+        "applied_weight_amount_rto": "N/A"
+      },
+      "quantity": 1,
+      "cost": "0.00",
+      "tax": "0.00",
+      "cod_charges": null,
+      "total": "500.00",
+      "shipping_address": {
+        "city": "Lucknow",
+        "state": "Uttar Pradesh",
+        "address": "Not Authorized",
+        "country": "India",
+        "pincode": "226201",
+        "address_2": "Not Authorized",
+        "company_name": null
+      },
+      "customer_details": {
+        "psid": "",
+        "phone": "Not Authorized",
+        "last_name": "Not Authorized",
+        "first_name": "Not Authorized"
+      },
+      "status": 11,
+      "shipped_date": null,
+      "delivered_date": null,
+      "returned_date": null,
+      "label_url": null,
+      "manifest_url": null,
+      "created_at": "2026-03-16T12:54:42.000000Z",
+      "updated_at": "2026-03-16T13:00:28.000000Z"
+    }
+  },
+  "initialLabelResponse": {
+    "label_created": 0,
+    "not_created": {
+      "1234413733": "Shipment awb not found"
+    },
+    "response": "No valid shipment ids to print label"
+  },
+  "awbResult": {
+    "status_code": 350,
+    "message": "Please recharge your ShipRocket wallet. The minimum required balance is Rs 100",
+    "awb_assign_status": 0,
+    "response": {
+      "data": {
+        "courier_id": "",
+        "awb_assign_error": "Please recharge your ShipRocket wallet. The minimum required balance is Rs 100"
+      }
+    }
+  },
+  "retryLabelResponse": {
+    "label_created": 0,
+    "not_created": {
+      "1234413733": "Shipment awb not found"
+    },
+    "response": "No valid shipment ids to print label"
+  }
+}
