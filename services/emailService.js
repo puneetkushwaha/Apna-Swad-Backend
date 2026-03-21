@@ -47,7 +47,7 @@ const getBaseTemplate = (content, previewText) => `
         <div class="footer">
             <p>&copy; ${new Date().getFullYear()} Apna Swad. Authentic Bihari Delicacies.</p>
             <p>Lucknow, Uttar Pradesh, India</p>
-            <p>Visit us: <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" style="color: ${BRAND_COLORS.secondary};">apnaswad.in</a></p>
+            <p>Visit us: <a href="${process.env.FRONTEND_URL || 'https://apna-swad-self.vercel.app'}" style="color: ${BRAND_COLORS.secondary};">apnaswad.in</a></p>
         </div>
     </div>
 </body>
@@ -114,7 +114,7 @@ exports.sendOrderConfirmation = async (email, order, isAdmin = false) => {
     <p><strong>Shipping to:</strong><br>
     ${order.shippingAddress.street}, ${order.shippingAddress.city}, ${order.shippingAddress.state} - ${order.shippingAddress.zipCode}</p>
 
-    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/${isAdmin ? 'admin/orders/' + order._id : 'profile'}" class="button">${isAdmin ? 'Process Order' : 'Track Your Order'}</a>
+    <a href="${process.env.FRONTEND_URL || 'https://apna-swad-self.vercel.app'}/${isAdmin ? 'admin/orders/' + order._id : 'profile'}" class="button">${isAdmin ? 'Process Order' : 'Track Your Order'}</a>
   `;
 
   try {
@@ -163,7 +163,7 @@ exports.sendStatusUpdate = async (email, order, status) => {
     <p style="font-size: 18px; font-weight: bold; color: ${BRAND_COLORS.secondary};">${statusMsg}</p>
     
     <p>If you have any questions, feel free to chat with us on our website.</p>
-    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/profile" class="button">View Order Details</a>
+    <a href="${process.env.FRONTEND_URL || 'https://apna-swad-self.vercel.app'}/profile" class="button">View Order Details</a>
   `;
 
   try {
@@ -190,7 +190,7 @@ exports.sendBulkEmail = async (recipients, subject, title, body) => {
     <div style="font-size: 16px; color: #444;">
         ${body.replace(/\n/g, '<br>')}
     </div>
-    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" class="button">Shop Now</a>
+    <a href="${process.env.FRONTEND_URL || 'https://apna-swad-self.vercel.app'}" class="button">Shop Now</a>
   `;
 
   try {
