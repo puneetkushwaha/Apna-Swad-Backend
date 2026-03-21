@@ -63,7 +63,7 @@ exports.sendWelcomeEmail = async (email, name) => {
     <p>We are absolutely thrilled to have you with us. At <span class="highlight">Apna Swad</span>, we bring the authentic taste of Bihar's heritage right to your doorstep.</p>
     <p>From our signature <span class="highlight">Thekuas</span> to traditional snacks, everything is made with love and purity.</p>
     <p>Start exploring our collection and satisfy your cravings today!</p>
-    <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}" class="button">Explore Products</a>
+    <a href="${process.env.FRONTEND_URL || 'https://apna-swad-self.vercel.app'}/profile" class="button">Explore Products</a>
     <p style="margin-top: 30px;">Best Regards,<br>Team Apna Swad</p>
   `;
   
