@@ -4,6 +4,7 @@ const Order = require('../models/Order');
 const { protect } = require('../middleware/authMiddleware');
 const { createNotification } = require('../controllers/notificationController');
 const { sendOrderConfirmation, sendStatusUpdate } = require('../services/emailService');
+const { sendWhatsAppUpdate } = require('../services/whatsappService');
 
 // @desc    Create new order
 // @route   POST /api/orders
@@ -62,6 +63,12 @@ router.post('/', protect, async (req, res) => {
       } catch (syncError) {
         console.error('Shiprocket Sync Error during order creation:', syncError);
       }
+    }
+
+    // Send WhatsApp Notification
+    if (shippingAddress.phone) {
+      const waMsg = `Namaste! Your order #${createdOrder._id.toString().slice(-6).toUpperCase()} at Apna Swad is confirmed. Total: Rs. ${totalAmount}. Track here: https://apna-swad-self.vercel.app/profile`;
+      await sendWhatsAppUpdate(shippingAddress.phone, waMsg);
     }
 
     res.status(201).json(createdOrder);
@@ -145,6 +152,12 @@ router.put('/:id/status', protect, async (req, res) => {
         link: `/profile`,
         metadata: { orderId: order._id }
       });
+
+      // WhatsApp Status Update
+      if (order.shippingAddress && order.shippingAddress.phone) {
+        const waStatusMsg = `Update for Order #${order._id.toString().slice(-6).toUpperCase()}: Your order status is now ${orderStatus.toUpperCase()}. Track here: https://apna-swad-self.vercel.app/profile`;
+        await sendWhatsAppUpdate(order.shippingAddress.phone, waStatusMsg);
+      }
 
       res.json(updatedOrder);
     } else {

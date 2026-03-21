@@ -65,4 +65,28 @@ router.get('/profile', userAuth, async (req, res) => {
   }
 });
 
+// Sync Cart for Abandoned Cart recovery
+router.post('/sync-cart', userAuth, async (req, res) => {
+  try {
+    const { cartItems } = req.body;
+    // Map frontend items to backend structure
+    const cart = cartItems.map(item => ({
+      productId: item._id,
+      quantity: item.quantity,
+      name: item.name,
+      price: item.price,
+      image: item.image
+    }));
+    
+    const user = await User.findByIdAndUpdate(
+      req.userId, 
+      { cart, lastCartUpdate: new Date() }, 
+      { returnDocument: 'after' }
+    );
+    res.json({ success: true, cartCount: user.cart.length });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 module.exports = router;

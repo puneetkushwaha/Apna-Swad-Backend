@@ -207,3 +207,52 @@ exports.sendBulkEmail = async (recipients, subject, title, body) => {
     throw error;
   }
 };
+/**
+ * Send Abandoned Cart Email
+ */
+exports.sendAbandonedCartEmail = async (user) => {
+  const itemsHtml = user.cart.map(item => `
+    <tr>
+        <td>${item.name} x ${item.quantity}</td>
+        <td style="text-align: right;">Rs. ${item.price * item.quantity}</td>
+    </tr>
+  `).join('');
+
+  const content = `
+    <h2>You Left Something Delicious! 🥟✨</h2>
+    <p>Hi ${user.name || 'Foodie'}, we noticed you left some authentic heritage snacks in your cart. They are waiting for you!</p>
+    
+    <table class="order-table">
+        <thead>
+            <tr>
+                <th>Items</th>
+                <th style="text-align: right;">Price</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${itemsHtml}
+        </tbody>
+    </table>
+
+    <p style="font-size: 18px; font-weight: bold; color: ${BRAND_COLORS.secondary};">
+        Complete your order now and use code <span style="background: #fff; padding: 2px 8px; border: 1px dashed ${BRAND_COLORS.secondary};">SAVE5</span> for an extra 5% OFF!
+    </p>
+    
+    <p>Treat yourself to the heritage taste you deserve.</p>
+    <a href="${process.env.FRONTEND_URL || 'https://apna-swad-self.vercel.app'}/cart" class="button">Return to Cart</a>
+  `;
+
+  try {
+    const data = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: user.email,
+      subject: 'Your snacks are waiting for you! (5% OFF inside) 🥟',
+      html: getBaseTemplate(content, 'Complete your order and enjoy a special gift from Apna Swad!')
+    });
+    console.log('Abandoned Cart Email Sent Successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('Abandoned Cart Email Error:', error);
+    throw error;
+  }
+};

@@ -16,8 +16,18 @@ const UserSchema = new mongoose.Schema({
     landmark: { type: String },
     city: { type: String },
     state: { type: String },
+    pincode: { type: String },
+    state: { type: String },
     pincode: { type: String }
-  }
+  },
+  cart: [{
+    productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+    quantity: { type: Number, default: 1 },
+    name: String,
+    price: Number,
+    image: String
+  }],
+  lastCartUpdate: { type: Date, default: Date.now }
 }, { timestamps: true });
 
 // Hash password before saving
