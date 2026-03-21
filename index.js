@@ -13,6 +13,11 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Root Route
+app.get('/', (req, res) => {
+  res.send('Apna Swad Backend is Running!');
+});
+
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
@@ -53,6 +58,11 @@ app.use('/api/announcements', announcementRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
+
+// 404 Handler
+app.use((req, res) => {
+  res.status(404).json({ message: 'Route not found' });
+});
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
