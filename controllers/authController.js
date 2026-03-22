@@ -3,6 +3,20 @@ const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const { createNotification } = require('./notificationController');
 const { sendWelcomeEmail } = require('../services/emailService');
+const fs = require('fs');
+const path = require('path');
+
+const getAdminEmails = () => {
+  try {
+    const filePath = path.join(__dirname, '../config/admins.json');
+    if (fs.existsSync(filePath)) {
+      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    }
+  } catch (err) {
+    console.error('Error loading admin emails:', err);
+  }
+  return [];
+};
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -69,8 +83,16 @@ exports.googleAuth = async (req, res) => {
     const { name, email, sub: googleId, picture: avatar } = ticket.getPayload();
 
     let user = await User.findOne({ email });
+    const adminEmails = getAdminEmails();
+
     if (!user) {
-      user = new User({ name, email, googleId, avatar });
+      user = new User({ 
+        name, 
+        email, 
+        googleId, 
+        avatar,
+        role: adminEmails.includes(email) ? 'admin' : 'user'
+      });
       await user.save();
 
       // Send Welcome Email
@@ -88,10 +110,23 @@ exports.googleAuth = async (req, res) => {
         message: `A new customer, ${name} (${email}), has just joined via Google!`,
         link: '/admin/users'
       });
-    } else if (!user.googleId) {
-      user.googleId = googleId;
-      user.avatar = avatar;
-      await user.save();
+    } else {
+      let isUpdated = false;
+      if (!user.googleId) {
+        user.googleId = googleId;
+        isUpdated = true;
+      }
+      if (user.avatar !== avatar) {
+        user.avatar = avatar;
+        isUpdated = true;
+      }
+      // Auto-promote if in the admins list and not already admin
+      if (adminEmails.includes(email) && user.role !== 'admin') {
+        user.role = 'admin';
+        isUpdated = true;
+      }
+      
+      if (isUpdated) await user.save();
     }
 
     const token = generateToken(user);
