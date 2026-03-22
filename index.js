@@ -11,7 +11,9 @@ const xss = require('xss-clean');
 const app = express();
 
 // Security HTTP Headers
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 
 // Global Rate Limiting
 const limiter = rateLimit({
@@ -27,9 +29,23 @@ app.use(mongoSanitize());
 // Data sanitization against XSS
 app.use(xss());
 
-// Middleware
+// Middleware - Explicitly allow Vercel and local origins
+const allowedOrigins = [
+  'https://apna-swad-self.vercel.app',
+  'http://localhost:5173',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '10kb' })); // Limit body size to prevent DDoS
