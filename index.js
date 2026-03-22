@@ -65,6 +65,7 @@ const userRoutes = require('./routes/userRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const contactRoutes = require('./routes/contactRoutes');
 
 app.use('/api/categories', categoryRoutes);
 app.use('/api/products', productRoutes);
@@ -81,6 +82,7 @@ app.use('/api/user', userRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/contact', contactRoutes);
 
 // 404 Handler
 app.use((req, res) => {
