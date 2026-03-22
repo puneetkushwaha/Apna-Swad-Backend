@@ -27,33 +27,10 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Middleware for auth - Standardized with protect logic
-const auth = async (req, res, next) => {
-  let token;
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    try {
-      token = req.headers.authorization.split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
-      const adminUser = await User.findById(decoded.id);
-      if (!adminUser || adminUser.role !== 'admin') {
-        return res.status(403).json({ message: 'Forbidden. Admin credentials required.' });
-      }
-      
-      req.adminId = decoded.id;
-      req.user = adminUser; // Also set req.user for consistency
-      next();
-    } catch (err) {
-      console.error('Admin Auth Error:', err.message);
-      res.status(401).json({ message: 'Token is not valid' });
-    }
-  } else {
-    res.status(401).json({ message: 'No token, authorization denied' });
-  }
-};
+const { protect, admin } = require('../middleware/authMiddleware');
 
 // Category CRUD
-router.post('/categories', auth, upload.single('image'), async (req, res) => {
+router.post('/categories', protect, admin, upload.single('image'), async (req, res) => {
   try {
     const categoryData = req.body;
     if (req.file) {
@@ -90,7 +67,7 @@ router.delete('/categories/:id', auth, async (req, res) => {
 });
 
 // Product CRUD - Added gallery support
-router.post('/products', auth, upload.fields([
+router.post('/products', protect, admin, upload.fields([
   { name: 'image', maxCount: 1 }, 
   { name: 'hoverImage', maxCount: 1 },
   { name: 'gallery', maxCount: 10 }
@@ -144,7 +121,7 @@ router.post('/products', auth, upload.fields([
   }
 });
 
-router.put('/products/:id', auth, upload.fields([
+router.put('/products/:id', protect, admin, upload.fields([
   { name: 'image', maxCount: 1 }, 
   { name: 'hoverImage', maxCount: 1 },
   { name: 'gallery', maxCount: 10 }
@@ -193,7 +170,7 @@ router.put('/products/:id', auth, upload.fields([
   }
 });
 
-router.delete('/products/:id', auth, async (req, res) => {
+router.delete('/products/:id', protect, admin, async (req, res) => {
   try {
     await Product.findByIdAndDelete(req.params.id);
     res.json({ message: 'Product deleted' });
@@ -203,7 +180,7 @@ router.delete('/products/:id', auth, async (req, res) => {
 });
 
 // Bulk Email Endpoint
-router.post('/bulk-email', auth, async (req, res) => {
+router.post('/bulk-email', protect, admin, async (req, res) => {
   const { subject, title, body } = req.body;
   if (!subject || !title || !body) {
     return res.status(400).json({ message: 'Subject, Title, and Body are required' });

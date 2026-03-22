@@ -39,12 +39,12 @@ router.post('/', protect, async (req, res) => {
 router.get('/:userId', protect, async (req, res) => {
   try {
     const targetUserId = req.params.userId;
-    const currentUserId = req.user._id;
+    const currentUserId = req.user._id.toString();
 
-    // Users can only see their own chats with admin. Admin can see anyone's chats.
-    if (req.user.role !== 'admin' && targetUserId !== currentUserId.toString()) {
-      // Logic for user: they are always chatting with admin. 
-      // targetUserId here would be the adminId.
+    // Users can only see their own chats. Admin can see anyone's chats.
+    // If user is not admin and is trying to access someone else's chat history
+    if (req.user.role !== 'admin' && targetUserId !== currentUserId) {
+        return res.status(403).json({ message: 'Not authorized to access this conversation' });
     }
 
     const messages = await Chat.find({

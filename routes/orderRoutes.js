@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, admin } = require('../middleware/authMiddleware');
 const { createNotification } = require('../controllers/notificationController');
 const { sendOrderConfirmation, sendStatusUpdate } = require('../services/emailService');
 const { sendWhatsAppUpdate } = require('../services/whatsappService');
@@ -117,11 +117,8 @@ router.get('/:id', protect, async (req, res) => {
 // @desc    Get all orders (Admin only)
 // @route   GET /api/orders
 // @access  PrivateAdmin
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, admin, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized as admin' });
-    }
     const orders = await Order.find({}).populate('user', 'name email').sort({ createdAt: -1 });
     res.json(orders);
   } catch (err) {
@@ -132,11 +129,8 @@ router.get('/', protect, async (req, res) => {
 // @desc    Update order status and tracking (Admin only)
 // @route   PUT /api/orders/:id/status
 // @access  PrivateAdmin
-router.put('/:id/status', protect, async (req, res) => {
+router.put('/:id/status', protect, admin, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized as admin' });
-    }
     const { orderStatus, trackingId, carrierName } = req.body;
     const order = await Order.findById(req.params.id).populate('user', 'name email');
 
