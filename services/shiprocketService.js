@@ -215,14 +215,15 @@ class ShiprocketService {
   }
 
   /**
-   * Generates a shipping label for a shipment.
-   * @param {string|number} shipmentId - The Shiprocket shipment ID.
+   * Generates shipping labels for one or more shipments.
+   * @param {string|number|Array<string|number>} shipmentIds - One or more Shiprocket shipment IDs.
    */
-  async generateLabel(shipmentId) {
+  async generateLabel(shipmentIds) {
     try {
       const token = await this.authenticate();
+      const ids = Array.isArray(shipmentIds) ? shipmentIds : [shipmentIds];
       const response = await axios.post(`${this.baseUrl}/courier/generate/label`, {
-        shipment_id: [shipmentId]
+        shipment_id: ids
       }, {
         headers: {
           'Authorization': `Bearer ${token}`,

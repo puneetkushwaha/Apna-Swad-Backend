@@ -331,6 +331,62 @@ router.put('/:id/update-shipping', protect, async (req, res) => {
   }
 });
 
+// @desc    Bulk Generate Shiprocket Labels (Admin only)
+// @route   POST /api/orders/bulk-label
+// @access  PrivateAdmin
+router.post('/bulk-label', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized as admin' });
+    }
+    const { orderIds } = req.body;
+    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({ message: 'No order IDs provided' });
+    }
+
+    const orders = await Order.find({ _id: { $in: orderIds } });
+    const shipmentIds = orders.map(o => o.trackingId).filter(id => id);
+
+    if (shipmentIds.length === 0) {
+      return res.status(400).json({ message: 'None of the selected orders have tracking IDs.' });
+    }
+
+    const shiprocketService = require('../services/shiprocketService');
+    const labelData = await shiprocketService.generateLabel(shipmentIds);
+    res.json(labelData);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// @desc    Bulk Generate Shiprocket Invoices (Admin only)
+// @route   POST /api/orders/bulk-invoice
+// @access  PrivateAdmin
+router.post('/bulk-invoice', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized as admin' });
+    }
+    const { orderIds } = req.body;
+    if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({ message: 'No order IDs provided' });
+    }
+
+    const orders = await Order.find({ _id: { $in: orderIds } });
+    const srOrderIds = orders.map(o => o.shiprocketOrderId).filter(id => id);
+
+    if (srOrderIds.length === 0) {
+      return res.status(400).json({ message: 'None of the selected orders are synced with Shiprocket.' });
+    }
+
+    const shiprocketService = require('../services/shiprocketService');
+    const invoiceData = await shiprocketService.generateInvoice(srOrderIds);
+    res.json(invoiceData);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // @desc    Generate Shiprocket Label (Admin only)
 // @route   GET /api/orders/:id/label
 // @access  PrivateAdmin
