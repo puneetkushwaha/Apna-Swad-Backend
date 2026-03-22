@@ -38,7 +38,7 @@ const getBaseTemplate = (content, previewText) => `
     <div style="display: none; max-height: 0px; overflow: hidden;">${previewText}</div>
     <div class="container">
         <div class="header">
-            <img src="https://res.cloudinary.com/dnzlgjs94/image/upload/v1710672000/logo_v2.png" alt="Apna Swad Logo">
+            <img src="https://apna-swad-self.vercel.app/mascot_logo.png" alt="Apna Swad Logo">
             <h1>APNA SWAD</h1>
         </div>
         <div class="content">

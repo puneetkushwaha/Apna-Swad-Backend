@@ -138,7 +138,7 @@ router.put('/:id/status', protect, async (req, res) => {
       return res.status(403).json({ message: 'Not authorized as admin' });
     }
     const { orderStatus, trackingId, carrierName } = req.body;
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id).populate('user', 'name email');
 
     if (order) {
       order.orderStatus = orderStatus || order.orderStatus;
@@ -147,15 +147,24 @@ router.put('/:id/status', protect, async (req, res) => {
 
       const updatedOrder = await order.save();
 
-      // Notify User
+      // Notify User (In-app)
       await createNotification({
-        recipient: order.user.toString(),
+        recipient: order.user._id.toString(),
         type: 'status_update',
         title: 'Order Status Updated',
         message: `Your order #${order._id.toString().slice(-6)} status has been updated to: ${orderStatus}`,
         link: `/profile`,
         metadata: { orderId: order._id }
       });
+
+      // Email Status Update
+      if (order.user && order.user.email) {
+        try {
+          await sendStatusUpdate(order.user.email, updatedOrder, orderStatus);
+        } catch (emailError) {
+          console.error('Status Update Email Failed:', emailError);
+        }
+      }
 
       // WhatsApp Status Update
       if (order.shippingAddress && order.shippingAddress.phone) {
@@ -164,7 +173,6 @@ router.put('/:id/status', protect, async (req, res) => {
           await sendWhatsAppUpdate(order.shippingAddress.phone, waStatusMsg);
         } catch (waError) {
           console.error('WhatsApp Status Update Failed:', waError);
-          // Don't throw, just log. The order status itself is already updated.
         }
       }
 
