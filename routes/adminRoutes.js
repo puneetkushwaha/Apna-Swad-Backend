@@ -44,7 +44,7 @@ router.post('/categories', protect, admin, upload.single('image'), async (req, r
   }
 });
 
-router.put('/categories/:id', auth, upload.single('image'), async (req, res) => {
+router.put('/categories/:id', protect, admin, upload.single('image'), async (req, res) => {
   try {
     const categoryData = req.body;
     if (req.file) {
@@ -57,7 +57,7 @@ router.put('/categories/:id', auth, upload.single('image'), async (req, res) => 
   }
 });
 
-router.delete('/categories/:id', auth, async (req, res) => {
+router.delete('/categories/:id', protect, admin, async (req, res) => {
   try {
     await Category.findByIdAndDelete(req.params.id);
     res.json({ message: 'Category deleted' });
