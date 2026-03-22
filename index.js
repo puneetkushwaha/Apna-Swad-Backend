@@ -5,8 +5,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const mongoSanitize = require('express-mongo-sanitize');
-const xss = require('xss-clean');
+const mongoSanitize = require('mongo-sanitize');
+// Removed xss-clean and express-mongo-sanitize due to Express 5 compatibility issues
 
 const app = express();
 
@@ -46,8 +46,7 @@ const limiter = rateLimit({
 app.use('/api', limiter);
 
 // 4. Data sanitization
-app.use(mongoSanitize());
-app.use(xss());
+// Removed incompatible express-mongo-sanitize and xss-clean
 
 app.use(express.json({ limit: '10kb' })); 
 
