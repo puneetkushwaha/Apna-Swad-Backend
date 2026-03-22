@@ -10,45 +10,46 @@ const xss = require('xss-clean');
 
 const app = express();
 
-// Security HTTP Headers
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
-
-// Global Rate Limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again after 15 minutes'
-});
-app.use('/api', limiter);
-
-// Data sanitization against NoSQL query injection
-app.use(mongoSanitize());
-
-// Data sanitization against XSS
-app.use(xss());
-
-// Middleware - Explicitly allow Vercel and local origins
+// 1. CORS - MUST BE FIRST to handle Preflight (OPTIONS) requests
 const allowedOrigins = [
   'https://apna-swad-self.vercel.app',
+  'https://apnaswad.store',
+  'https://www.apnaswad.store',
   'http://localhost:5173',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
     }
-    return callback(null, true);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
-app.use(express.json({ limit: '10kb' })); // Limit body size to prevent DDoS
+
+// 2. Security HTTP Headers
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+// 3. Global Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 1000, // Increased for production
+  message: 'Too many requests from this IP'
+});
+app.use('/api', limiter);
+
+// 4. Data sanitization
+app.use(mongoSanitize());
+app.use(xss());
+
+app.use(express.json({ limit: '10kb' })); 
 
 // Root Route
 app.get('/', (req, res) => {
