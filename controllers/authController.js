@@ -14,11 +14,11 @@ const generateToken = (user) => {
 
 exports.signup = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, phone, password } = req.body;
     let user = await User.findOne({ email });
     if (user) return res.status(400).json({ message: 'User already exists' });
 
-    user = new User({ name, email, password });
+    user = new User({ name, email, phone, password });
     const createdUser = await user.save();
 
     // Send Welcome Email
