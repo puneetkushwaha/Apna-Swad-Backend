@@ -124,7 +124,8 @@ app.use((err, req, res, next) => {
   
   res.status(500).json({
     message: 'Internal Server Error',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+    error: err.message, // Temporarily expose for debugging production 500s
+    path: req.path
   });
 });
 
