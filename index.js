@@ -101,9 +101,31 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/contact', contactRoutes);
 
+// Health Check Route
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // 404 Handler
 app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
+});
+
+// Global Error Handler - CRITICAL for 500 debugging
+app.use((err, req, res, next) => {
+  console.error('--- SERVER ERROR ---');
+  console.error('Message:', err.message);
+  console.error('Stack:', err.stack);
+  console.error('--------------------');
+  
+  res.status(500).json({
+    message: 'Internal Server Error',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
 });
 
 const PORT = process.env.PORT || 5000;
