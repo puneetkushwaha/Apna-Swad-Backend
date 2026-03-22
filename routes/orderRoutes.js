@@ -67,8 +67,12 @@ router.post('/', protect, async (req, res) => {
 
     // Send WhatsApp Notification
     if (shippingAddress.phone) {
-      const waMsg = `Namaste! Your order #${createdOrder._id.toString().slice(-6).toUpperCase()} at Apna Swad is confirmed. Total: Rs. ${totalAmount}. Track here: https://apna-swad-self.vercel.app/profile`;
-      await sendWhatsAppUpdate(shippingAddress.phone, waMsg);
+      try {
+        const waMsg = `Namaste! Your order #${createdOrder._id.toString().slice(-6).toUpperCase()} at Apna Swad is confirmed. Total: Rs. ${totalAmount}. Track here: https://apna-swad-self.vercel.app/profile`;
+        await sendWhatsAppUpdate(shippingAddress.phone, waMsg);
+      } catch (waError) {
+        console.error('WhatsApp Notification Failed during order creation:', waError);
+      }
     }
 
     res.status(201).json(createdOrder);
