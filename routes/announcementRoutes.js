@@ -1,23 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Announcement = require('../models/Announcement');
+const { protect, admin } = require('../middleware/authMiddleware');
 const jwt = require('jsonwebtoken');
-
-// Middleware for admin auth (simplified for this route)
-const adminAuth = (req, res, next) => {
-  const token = req.header('Authorization');
-  if (!token) return res.status(401).json({ message: 'No token, authorization denied' });
-  try {
-    const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
-    if (decoded.role !== 'admin') {
-      return res.status(403).json({ message: 'Forbidden. Admin role required.' });
-    }
-    req.adminId = decoded.id;
-    next();
-  } catch (err) {
-    res.status(401).json({ message: 'Token is not valid' });
-  }
-};
 
 // Get active announcement
 router.get('/', async (req, res) => {
@@ -30,7 +15,7 @@ router.get('/', async (req, res) => {
 });
 
 // Create/Update announcement
-router.post('/', adminAuth, async (req, res) => {
+router.post('/', protect, admin, async (req, res) => {
   const { text, isActive } = req.body;
   try {
     // For simplicity, we just keep one active announcement or update the latest

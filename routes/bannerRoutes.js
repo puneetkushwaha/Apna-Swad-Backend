@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Banner = require('../models/Banner');
 const { protect, admin } = require('../middleware/authMiddleware');
+const { upload } = require('../middleware/cloudinaryConfig');
 
 // Public: Get all active banners
 router.get('/', async (req, res) => {
@@ -14,7 +15,7 @@ router.get('/', async (req, res) => {
 });
 
 // Admin: Add banner
-router.post('/', auth, upload.single('image'), async (req, res) => {
+router.post('/', protect, admin, upload.single('image'), async (req, res) => {
   try {
     const banner = new Banner({
       imageUrl: req.file.path,

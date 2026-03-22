@@ -2,19 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Review = require('../models/Review');
 const { upload } = require('../middleware/cloudinaryConfig');
+const { protect, admin } = require('../middleware/authMiddleware');
 const jwt = require('jsonwebtoken');
-
-const auth = (req, res, next) => {
-  const token = req.header('Authorization');
-  if (!token) return res.status(401).json({ message: 'No token' });
-  try {
-    const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
-    req.adminId = decoded.id;
-    next();
-  } catch (err) {
-    res.status(401).json({ message: 'Token is not valid' });
-  }
-};
 
 // Public: Get all active reviews
 router.get('/', async (req, res) => {
@@ -28,7 +17,9 @@ router.get('/', async (req, res) => {
 
 // Admin: Add review (supports image for profile icon OR video file)
 // Note: Multer field names must match frontend
-router.post('/', auth, upload.fields([{ name: 'profileIcon', maxCount: 1 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
+// Admin: Add review (supports image for profile icon OR video file)
+// Note: Multer field names must match frontend
+router.post('/', protect, admin, upload.fields([{ name: 'profileIcon', maxCount: 1 }, { name: 'video', maxCount: 1 }]), async (req, res) => {
   try {
     const reviewData = {
       name: req.body.name,
@@ -50,7 +41,7 @@ router.post('/', auth, upload.fields([{ name: 'profileIcon', maxCount: 1 }, { na
 });
 
 // Admin: Delete review
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', protect, admin, async (req, res) => {
   try {
     await Review.findByIdAndDelete(req.params.id);
     res.json({ message: 'Review deleted' });
