@@ -155,8 +155,13 @@ router.put('/:id/status', protect, async (req, res) => {
 
       // WhatsApp Status Update
       if (order.shippingAddress && order.shippingAddress.phone) {
-        const waStatusMsg = `Update for Order #${order._id.toString().slice(-6).toUpperCase()}: Your order status is now ${orderStatus.toUpperCase()}. Track here: https://apna-swad-self.vercel.app/profile`;
-        await sendWhatsAppUpdate(order.shippingAddress.phone, waStatusMsg);
+        try {
+          const waStatusMsg = `Update for Order #${order._id.toString().slice(-6).toUpperCase()}: Your order status is now ${orderStatus.toUpperCase()}. Track here: https://apna-swad-self.vercel.app/profile`;
+          await sendWhatsAppUpdate(order.shippingAddress.phone, waStatusMsg);
+        } catch (waError) {
+          console.error('WhatsApp Status Update Failed:', waError);
+          // Don't throw, just log. The order status itself is already updated.
+        }
       }
 
       res.json(updatedOrder);
@@ -164,6 +169,7 @@ router.put('/:id/status', protect, async (req, res) => {
       res.status(404).json({ message: 'Order not found' });
     }
   } catch (err) {
+    console.error('Order Status Update Error:', err);
     res.status(500).json({ message: err.message });
   }
 });
