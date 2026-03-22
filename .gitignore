@@ -7,3 +7,7 @@ build
 *.test.js
 whatsapp_test*
 clean_env*
+auth_diag*
+final_test*
+diagnostics/
+scripts/test/
