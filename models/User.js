@@ -33,7 +33,9 @@ const UserSchema = new mongoose.Schema({
   referralCode: { type: String, unique: true, sparse: true },
   referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   referralCount: { type: Number, default: 0 },
-  rewardsEarned: { type: Number, default: 0 }
+  rewardsEarned: { type: Number, default: 0 },
+  referralRewards: [String],
+  isReferralProcessed: { type: Boolean, default: false }
 }, { timestamps: true });
 
 // Hash password before saving

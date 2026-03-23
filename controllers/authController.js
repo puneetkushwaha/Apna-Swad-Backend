@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Coupon = require('../models/Coupon');
 const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const { createNotification } = require('./notificationController');
@@ -46,22 +47,6 @@ exports.signup = async (req, res) => {
         const referrer = await User.findOne({ referralCode: usedReferralCode.toUpperCase() });
         if (referrer) {
           user.referredBy = referrer._id;
-          
-          // Update referrer
-          referrer.referralCount += 1;
-          if (referrer.referralCount % settings.referral.targetCount === 0) {
-            referrer.rewardsEarned += 1;
-            
-            // Notify Referrer
-            await createNotification({
-              recipient: referrer._id.toString(),
-              type: 'system',
-              title: 'Free Pack Earned! 🎉',
-              message: `Congratulations! Your 5th referral just signed up. You've earned a free pack reward!`,
-              link: '/profile'
-            });
-          }
-          await referrer.save();
         }
       }
     }
@@ -85,7 +70,19 @@ exports.signup = async (req, res) => {
     });
 
     const token = generateToken(user);
-    res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+    res.status(201).json({ 
+      token, 
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        role: user.role,
+        referralCode: user.referralCode,
+        referralCount: user.referralCount,
+        rewardsEarned: user.rewardsEarned,
+        referralRewards: user.referralRewards || []
+      } 
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -100,7 +97,19 @@ exports.login = async (req, res) => {
     }
 
     const token = generateToken(user);
-    res.status(200).json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+    res.status(200).json({ 
+      token, 
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        role: user.role,
+        referralCode: user.referralCode,
+        referralCount: user.referralCount,
+        rewardsEarned: user.rewardsEarned,
+        referralRewards: user.referralRewards || []
+      } 
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -138,11 +147,6 @@ exports.googleAuth = async (req, res) => {
           const referrer = await User.findOne({ referralCode: usedReferralCode.toUpperCase() });
           if (referrer) {
             user.referredBy = referrer._id;
-            referrer.referralCount += 1;
-            if (referrer.referralCount % settings.referral.targetCount === 0) {
-              referrer.rewardsEarned += 1;
-            }
-            await referrer.save();
           }
         }
       }
@@ -184,7 +188,20 @@ exports.googleAuth = async (req, res) => {
     }
 
     const token = generateToken(user);
-    res.status(200).json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role, avatar: user.avatar } });
+    res.status(200).json({ 
+      token, 
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        role: user.role, 
+        avatar: user.avatar,
+        referralCode: user.referralCode,
+        referralCount: user.referralCount,
+        rewardsEarned: user.rewardsEarned,
+        referralRewards: user.referralRewards || []
+      } 
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

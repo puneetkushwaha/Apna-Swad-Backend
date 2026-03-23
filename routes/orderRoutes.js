@@ -1,43 +1,88 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
-const { protect, admin } = require('../middleware/authMiddleware');
-const { createNotification } = require('../controllers/notificationController');
-const { sendOrderConfirmation, sendStatusUpdate } = require('../services/emailService');
-const { sendWhatsAppUpdate } = require('../services/whatsappService');
+const protect = require('../middleware/authMiddleware');
 const PromotionSetting = require('../models/PromotionSetting');
-const { calculateItemPromos, applyGlobalPromos } = require('../utils/promoUtils');
 const Coupon = require('../models/Coupon');
+const User = require('../models/User');
+const crypto = require('crypto');
+const { calculateItemPromos, applyGlobalPromos } = require('../utils/promoUtils');
+const { createNotification } = require('../controllers/notificationController');
+const { sendOrderConfirmation, sendReferralRewardEmail } = require('../services/emailService');
+const { sendWhatsAppUpdate } = require('../services/whatsappService');
+
+// @desc    Calculate checkout total with promotions
+// @route   POST /api/orders/calculate-checkout
+// @access  Public
+router.post('/calculate-checkout', async (req, res) => {
+  try {
+    const { items, couponCode } = req.body;
+    
+    // Load Promo Settings
+    const promoSettings = await PromotionSetting.findOne({ settingId: 'global_promo_config' }) || { b2g1: { isEnabled: false }, firstOrders: { isEnabled: false } };
+
+    // Calculate dynamic total
+    const itemTotal = calculateItemPromos(items, promoSettings);
+    const { finalTotal, discountApplied, couponUsed } = await applyGlobalPromos(itemTotal, promoSettings, couponCode);
+
+    res.json({
+      itemTotal,
+      finalTotal,
+      discountApplied,
+      couponUsed: couponUsed ? couponUsed.code : null,
+      promos: {
+        b2g1: promoSettings.b2g1.isEnabled,
+        firstOrders: promoSettings.firstOrders.isEnabled
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
 
 // @desc    Create new order
 // @route   POST /api/orders
 // @access  Private
 router.post('/', protect, async (req, res) => {
   try {
-    const { items, shippingAddress } = req.body;
+    const { 
+      items, 
+      totalAmount, 
+      discountAmount,
+      couponCode,
+      shippingAddress, 
+      paymentMethod, 
+      paymentStatus, 
+      razorpayOrderId, 
+      razorpayPaymentId 
+    } = req.body;
 
     if (items && items.length === 0) {
       return res.status(400).json({ message: 'No items in order' });
     }
 
-    // Load Promo Settings
-    const promoSettings = await PromotionSetting.findOne({ settingId: 'global_promo_config' }) || { b2g1: { isEnabled: false }, firstOrders: { isEnabled: false } };
-
-    // Calculate dynamic total
-    const itemTotal = calculateItemPromos(items, promoSettings);
-    const { finalTotal, discountApplied, couponUsed } = await applyGlobalPromos(itemTotal, promoSettings, req.body.couponCode);
+    // If a coupon code is provided, verify it and mark it as used
+    let couponUsed = null;
+    if (couponCode) {
+      couponUsed = await Coupon.findOne({ code: couponCode, isActive: true });
+      if (!couponUsed) {
+        return res.status(400).json({ message: 'Invalid or inactive coupon code' });
+      }
+      // Further validation (e.g., usage limits, expiry) should ideally happen in calculate-checkout
+      // but we'll increment usedCount here if it's valid.
+    }
 
     const order = new Order({
       user: req.user._id,
       items,
-      totalAmount: finalTotal,
-      discountAmount: discountApplied,
-      couponCode: couponUsed ? couponUsed.code : null,
+      totalAmount,
+      discountAmount: discountAmount || 0,
+      couponCode: couponCode || null,
       shippingAddress,
-      paymentMethod: req.body.paymentMethod || 'Razorpay',
-      paymentStatus: req.body.paymentStatus || 'pending',
-      razorpayOrderId: req.body.razorpayOrderId,
-      razorpayPaymentId: req.body.razorpayPaymentId
+      paymentMethod,
+      paymentStatus,
+      razorpayOrderId,
+      razorpayPaymentId
     });
 
     const createdOrder = await order.save();
@@ -52,14 +97,62 @@ router.post('/', protect, async (req, res) => {
       recipient: 'admin',
       type: 'order_placed',
       title: 'New Order Received',
-      message: `A new order has been placed by ${req.user.name}. Total amount: Rs. ${finalTotal}`,
+      message: `A new order has been placed by ${req.user.name}. Total amount: Rs. ${totalAmount}`,
       link: `/admin/orders/${createdOrder._id}`,
       metadata: { orderId: createdOrder._id }
     });
 
+    // Handle Referral Credit (Awarded on First Successful Order)
+    if (req.user.referredBy && !req.user.isReferralProcessed) {
+      const settings = await PromotionSetting.findOne({ settingId: 'global_promo_config' });
+      if (settings && settings.referral && settings.referral.isEnabled) {
+        const referrer = await User.findById(req.user.referredBy);
+        if (referrer) {
+          referrer.referralCount += 1;
+          
+          if (referrer.referralCount % settings.referral.targetCount === 0) {
+            referrer.rewardsEarned += 1;
+            
+            // Generate a unique "Free Pack" Coupon
+            const rewardCouponCode = `FREE-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+            const rewardCoupon = new Coupon({
+              code: rewardCouponCode,
+              discountType: 'percentage',
+              discountValue: 100,
+              maxUses: 1,
+              isActive: true
+            });
+            await rewardCoupon.save();
+            
+            // Add to referrer's rewards
+            referrer.referralRewards.push(rewardCouponCode);
+
+            // Notify Referrer (App Notification)
+            await createNotification({
+              recipient: referrer._id.toString(),
+              type: 'system',
+              title: 'Free Pack Earned! 🎉',
+              message: `Congratulations! Your referral ${req.user.name} just placed their first order. Use code ${rewardCouponCode} for a free pack!`,
+              link: '/profile'
+            });
+
+            // Notify Referrer (Email)
+            try {
+              await sendReferralRewardEmail(referrer.email, referrer.name, rewardCouponCode);
+            } catch (emailErr) {
+              console.error('Failed to send referral reward email:', emailErr);
+            }
+          }
+          await referrer.save();
+          
+          // Mark this user's referral as processed
+          await User.findByIdAndUpdate(req.user._id, { isReferralProcessed: true });
+        }
+      }
+    }
+
     // Send Order Confirmation Email to User
     try {
-      const User = require('../models/User');
       const user = await User.findById(req.user._id);
       await sendOrderConfirmation(user.email, createdOrder);
       

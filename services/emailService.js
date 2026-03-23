@@ -256,3 +256,38 @@ exports.sendAbandonedCartEmail = async (user) => {
     throw error;
   }
 };
+/**
+ * Send Referral Reward Email
+ */
+exports.sendReferralRewardEmail = async (email, name, couponCode) => {
+  const content = `
+    <h2>You've Earned a Free Heritage Pack! 🎁✨</h2>
+    <p>Congratulations ${name}! You've successfully referred 5 friends to Apna Swad, and as a token of our appreciation, we're gifting you a free pack of our finest heritage snacks.</p>
+    
+    <div style="background: ${BRAND_COLORS.bg}; border: 2px dashed ${BRAND_COLORS.secondary}; padding: 30px; border-radius: 20px; text-align: center; margin: 30px 0;">
+        <p style="margin: 0; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; color: ${BRAND_COLORS.text}; opacity: 0.7;">Your Unique Reward Code</p>
+        <h1 style="margin: 10px 0; font-size: 42px; color: ${BRAND_COLORS.primary}; letter-spacing: 5px;">${couponCode}</h1>
+        <p style="margin: 0; font-size: 14px; color: ${BRAND_COLORS.secondary}; font-weight: bold;">100% OFF ON YOUR NEXT ORDER</p>
+    </div>
+
+    <p>Simply enter this code at checkout to claim your complimentary gift. Thank you for being a part of our heritage family and sharing the taste of Bihar!</p>
+    
+    <a href="${process.env.FRONTEND_URL || 'https://apna-swad-self.vercel.app'}" class="button">Claim Your Free Pack</a>
+    
+    <p style="margin-top: 30px; font-size: 12px; color: #999;">This code is valid for one-time use only. Terms & conditions apply.</p>
+  `;
+
+  try {
+    const data = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: email,
+      subject: 'Your Free Pack Reward is Here! 🥟🎁',
+      html: getBaseTemplate(content, 'Congratulations! You have earned a free heritage pack reward from Apna Swad.')
+    });
+    console.log('Referral Reward Email Sent Successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('Referral Reward Email Error:', error);
+    throw error;
+  }
+};
