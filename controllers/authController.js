@@ -97,6 +97,13 @@ exports.login = async (req, res) => {
     }
 
     const token = generateToken(user);
+
+    // Migration: Ensure existing users have a referral code
+    if (!user.referralCode) {
+      user.referralCode = 'AS' + crypto.randomBytes(3).toString('hex').toUpperCase();
+      await user.save();
+    }
+
     res.status(200).json({ 
       token, 
       user: { 
@@ -188,6 +195,13 @@ exports.googleAuth = async (req, res) => {
     }
 
     const token = generateToken(user);
+
+    // Migration: Ensure existing users have a referral code
+    if (!user.referralCode) {
+      user.referralCode = 'AS' + crypto.randomBytes(3).toString('hex').toUpperCase();
+      await user.save();
+    }
+
     res.status(200).json({ 
       token, 
       user: { 
