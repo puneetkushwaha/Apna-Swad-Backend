@@ -249,6 +249,18 @@ router.put('/promo-settings', protect, admin, async (req, res) => {
   }
 });
 
+// @desc    Get All Coupons (Recent)
+// @route   GET /api/admin/coupons
+// @access  PrivateAdmin
+router.get('/coupons', protect, admin, async (req, res) => {
+  try {
+    const coupons = await Coupon.find().sort({ createdAt: -1 }).limit(50);
+    res.json(coupons);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // @desc    Bulk Generate Coupons
 // @route   POST /api/admin/coupons/bulk
 // @access  PrivateAdmin
