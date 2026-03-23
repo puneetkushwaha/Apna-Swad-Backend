@@ -8,6 +8,8 @@ const Product = require('../models/Product');
 const { sendBulkEmail } = require('../services/emailService');
 const { createNotification } = require('../controllers/notificationController');
 
+const PromotionSetting = require('../models/PromotionSetting');
+const Coupon = require('../models/Coupon');
 const { upload } = require('../middleware/cloudinaryConfig');
 
 // Admin Login
@@ -211,6 +213,79 @@ router.post('/bulk-email', protect, admin, async (req, res) => {
     }
 
     res.json({ success: true, message: `Email sent to ${emails.length} users` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// @desc    Get Promo Settings
+// @route   GET /api/admin/promo-settings
+// @access  PrivateAdmin
+router.get('/promo-settings', protect, admin, async (req, res) => {
+  try {
+    let settings = await PromotionSetting.findOne({ settingId: 'global_promo_config' });
+    if (!settings) {
+      settings = await PromotionSetting.create({ settingId: 'global_promo_config' });
+    }
+    res.json(settings);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// @desc    Update Promo Settings
+// @route   PUT /api/admin/promo-settings
+// @access  PrivateAdmin
+router.put('/promo-settings', protect, admin, async (req, res) => {
+  try {
+    const settings = await PromotionSetting.findOneAndUpdate(
+      { settingId: 'global_promo_config' },
+      req.body,
+      { upsert: true, new: true }
+    );
+    res.json(settings);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// @desc    Bulk Generate Coupons
+// @route   POST /api/admin/coupons/bulk
+// @access  PrivateAdmin
+router.post('/coupons/bulk', protect, admin, async (req, res) => {
+  const { quantity, prefix, discountValue, discountType, expiryDate, maxUses } = req.body;
+  if (!quantity || !discountValue) {
+    return res.status(400).json({ message: 'Quantity and discountValue are required' });
+  }
+
+  try {
+    const coupons = [];
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    
+    for (let i = 0; i < quantity; i++) {
+      let randomPart = '';
+      for (let j = 0; j < 6; j++) {
+        randomPart += characters.charAt(Math.floor(Math.random() * characters.length));
+      }
+      const code = `${prefix || 'PROMO'}${randomPart}`;
+      
+      coupons.push({
+        code,
+        discountValue,
+        discountType: discountType || 'flat',
+        expiryDate,
+        maxUses: maxUses || 1,
+        createdBy: req.user._id
+      });
+    }
+
+    // Insert many but ignore duplicates if any random collisions occur (rare but good to handle)
+    await Coupon.insertMany(coupons, { ordered: false }).catch(err => {
+        // Log errors but continue if some failed (e.g. duplicate code)
+        console.error('Some coupons failed to insert (possibly duplicates):', err.message);
+    });
+
+    res.json({ message: `Successfully requested generation of ${quantity} coupons.` });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

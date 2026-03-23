@@ -5,22 +5,34 @@ const { protect, admin } = require('../middleware/authMiddleware');
 const { createNotification } = require('../controllers/notificationController');
 const { sendOrderConfirmation, sendStatusUpdate } = require('../services/emailService');
 const { sendWhatsAppUpdate } = require('../services/whatsappService');
+const PromotionSetting = require('../models/PromotionSetting');
+const { calculateItemPromos, applyGlobalPromos } = require('../utils/promoUtils');
+const Coupon = require('../models/Coupon');
 
 // @desc    Create new order
 // @route   POST /api/orders
 // @access  Private
 router.post('/', protect, async (req, res) => {
   try {
-    const { items, totalAmount, shippingAddress } = req.body;
+    const { items, shippingAddress } = req.body;
 
     if (items && items.length === 0) {
       return res.status(400).json({ message: 'No items in order' });
     }
 
+    // Load Promo Settings
+    const promoSettings = await PromotionSetting.findOne({ settingId: 'global_promo_config' }) || { b2g1: { isEnabled: false }, firstOrders: { isEnabled: false } };
+
+    // Calculate dynamic total
+    const itemTotal = calculateItemPromos(items, promoSettings);
+    const { finalTotal, discountApplied, couponUsed } = await applyGlobalPromos(itemTotal, promoSettings, req.body.couponCode);
+
     const order = new Order({
       user: req.user._id,
       items,
-      totalAmount,
+      totalAmount: finalTotal,
+      discountAmount: discountApplied,
+      couponCode: couponUsed ? couponUsed.code : null,
       shippingAddress,
       paymentMethod: req.body.paymentMethod || 'Razorpay',
       paymentStatus: req.body.paymentStatus || 'pending',
@@ -30,12 +42,17 @@ router.post('/', protect, async (req, res) => {
 
     const createdOrder = await order.save();
 
+    // If coupon was used, increment usedCount
+    if (couponUsed) {
+      await Coupon.findByIdAndUpdate(couponUsed._id, { $inc: { usedCount: 1 } });
+    }
+
     // Notify Admin
     await createNotification({
       recipient: 'admin',
       type: 'order_placed',
       title: 'New Order Received',
-      message: `A new order has been placed by ${req.user.name}. Total amount: Rs. ${totalAmount}`,
+      message: `A new order has been placed by ${req.user.name}. Total amount: Rs. ${finalTotal}`,
       link: `/admin/orders/${createdOrder._id}`,
       metadata: { orderId: createdOrder._id }
     });
@@ -68,7 +85,7 @@ router.post('/', protect, async (req, res) => {
     // Send WhatsApp Notification
     if (shippingAddress.phone) {
       try {
-        const waMsg = `Namaste! Your order #${createdOrder._id.toString().slice(-6).toUpperCase()} at Apna Swad is confirmed. Total: Rs. ${totalAmount}. Track here: https://apna-swad-self.vercel.app/profile`;
+        const waMsg = `Namaste! Your order #${createdOrder._id.toString().slice(-6).toUpperCase()} at Apna Swad is confirmed. Total: Rs. ${finalTotal}. Track here: https://apna-swad-self.vercel.app/profile`;
         await sendWhatsAppUpdate(shippingAddress.phone, waMsg);
       } catch (waError) {
         console.error('WhatsApp Notification Failed during order creation:', waError);

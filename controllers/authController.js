@@ -3,6 +3,8 @@ const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const { createNotification } = require('./notificationController');
 const { sendWelcomeEmail } = require('../services/emailService');
+const PromotionSetting = require('../models/PromotionSetting');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
@@ -28,11 +30,42 @@ const generateToken = (user) => {
 
 exports.signup = async (req, res) => {
   try {
-    const { name, email, phone, password } = req.body;
+    const { name, email, phone, password, referralCode: usedReferralCode } = req.body;
     let user = await User.findOne({ email });
     if (user) return res.status(400).json({ message: 'User already exists' });
 
-    user = new User({ name, email, phone, password });
+    // Generate new unique referral code
+    const newReferralCode = 'AS' + crypto.randomBytes(3).toString('hex').toUpperCase();
+
+    user = new User({ name, email, phone, password, referralCode: newReferralCode });
+
+    // Handle incoming referral
+    if (usedReferralCode) {
+      const settings = await PromotionSetting.findOne({ settingId: 'global_promo_config' });
+      if (settings && settings.referral && settings.referral.isEnabled) {
+        const referrer = await User.findOne({ referralCode: usedReferralCode.toUpperCase() });
+        if (referrer) {
+          user.referredBy = referrer._id;
+          
+          // Update referrer
+          referrer.referralCount += 1;
+          if (referrer.referralCount % settings.referral.targetCount === 0) {
+            referrer.rewardsEarned += 1;
+            
+            // Notify Referrer
+            await createNotification({
+              recipient: referrer._id.toString(),
+              type: 'system',
+              title: 'Free Pack Earned! 🎉',
+              message: `Congratulations! Your 5th referral just signed up. You've earned a free pack reward!`,
+              link: '/profile'
+            });
+          }
+          await referrer.save();
+        }
+      }
+    }
+
     const createdUser = await user.save();
 
     // Send Welcome Email
@@ -86,13 +119,34 @@ exports.googleAuth = async (req, res) => {
     const adminEmails = getAdminEmails();
 
     if (!user) {
+      const { referralCode: usedReferralCode } = req.body;
+      const newReferralCode = 'AS' + crypto.randomBytes(3).toString('hex').toUpperCase();
+
       user = new User({ 
         name, 
         email, 
         googleId, 
         avatar,
-        role: adminEmails.includes(email) ? 'admin' : 'user'
+        role: adminEmails.includes(email) ? 'admin' : 'user',
+        referralCode: newReferralCode
       });
+
+      // Handle referral for Google signup
+      if (usedReferralCode) {
+        const settings = await PromotionSetting.findOne({ settingId: 'global_promo_config' });
+        if (settings && settings.referral && settings.referral.isEnabled) {
+          const referrer = await User.findOne({ referralCode: usedReferralCode.toUpperCase() });
+          if (referrer) {
+            user.referredBy = referrer._id;
+            referrer.referralCount += 1;
+            if (referrer.referralCount % settings.referral.targetCount === 0) {
+              referrer.rewardsEarned += 1;
+            }
+            await referrer.save();
+          }
+        }
+      }
+
       await user.save();
 
       // Send Welcome Email

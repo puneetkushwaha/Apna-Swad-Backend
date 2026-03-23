@@ -27,7 +27,13 @@ const UserSchema = new mongoose.Schema({
     price: Number,
     image: String
   }],
-  lastCartUpdate: { type: Date, default: Date.now }
+  lastCartUpdate: { type: Date, default: Date.now },
+  
+  // Referral System Fields
+  referralCode: { type: String, unique: true, sparse: true },
+  referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  referralCount: { type: Number, default: 0 },
+  rewardsEarned: { type: Number, default: 0 }
 }, { timestamps: true });
 
 // Hash password before saving
