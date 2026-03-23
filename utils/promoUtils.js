@@ -69,17 +69,20 @@ const applyGlobalPromos = async (currentTotal, promoSettings, couponCode = null,
     });
 
     if (coupon && coupon.usedCount < coupon.maxUses) {
-      // Check if user has already used this coupon
-      // We check for completed orders by this user with this coupon code
+      // 10-Day Refresh Logic: Check if user has used this coupon in the last 10 days
       if (userId) {
-        const hasUsed = await Order.findOne({ 
+        const tenDaysAgo = new Date();
+        tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
+
+        const hasUsedRecently = await Order.findOne({ 
           user: userId, 
           couponCode: couponCode.toUpperCase(),
-          paymentStatus: { $ne: 'failed' } // Count all except failed
+          paymentStatus: { $ne: 'failed' },
+          createdAt: { $gte: tenDaysAgo }
         });
         
-        if (hasUsed) {
-          return { finalTotal: currentTotal, discountApplied, couponUsed: null, error: 'You have already used this coupon' };
+        if (hasUsedRecently) {
+          return { finalTotal: currentTotal, discountApplied, couponUsed: null, error: 'You have already used this coupon recently' };
         }
       }
 

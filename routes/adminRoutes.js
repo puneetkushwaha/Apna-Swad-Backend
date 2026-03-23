@@ -271,24 +271,37 @@ router.post('/coupons/bulk', protect, admin, async (req, res) => {
   }
 
   try {
+    const { quantity, prefix, discountType, discountValue, expiryDate, maxUses } = req.body;
     const coupons = [];
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    
-    for (let i = 0; i < quantity; i++) {
-      let randomPart = '';
-      for (let j = 0; j < 6; j++) {
-        randomPart += characters.charAt(Math.floor(Math.random() * characters.length));
+
+    if (quantity === 1) {
+      // Create a single specific global code
+      const existing = await Coupon.findOne({ code: prefix.toUpperCase() });
+      if (existing) {
+        return res.status(400).json({ message: `Coupon code '${prefix}' already exists. Please use a different name.` });
       }
-      const code = `${prefix || 'PROMO'}${randomPart}`;
-      
       coupons.push({
-        code,
+        code: prefix.toUpperCase(),
+        discountType,
         discountValue,
-        discountType: discountType || 'flat',
-        expiryDate,
-        maxUses: maxUses || 1,
+        expiryDate: expiryDate || null,
+        maxUses: maxUses || 99999,
         createdBy: req.user._id
       });
+    } else {
+      // Bulk generation with random suffix
+      for (let i = 0; i < quantity; i++) {
+        const randomPart = crypto.randomBytes(3).toString('hex').toUpperCase();
+        const code = `${prefix || 'PROMO'}${randomPart}`;
+        coupons.push({
+          code,
+          discountType,
+          discountValue,
+          expiryDate: expiryDate || null,
+          maxUses: 1, // Individual codes usually mean single use
+          createdBy: req.user._id
+        });
+      }
     }
 
     // Insert many but ignore duplicates if any random collisions occur (rare but good to handle)
@@ -297,7 +310,7 @@ router.post('/coupons/bulk', protect, admin, async (req, res) => {
         console.error('Some coupons failed to insert (possibly duplicates):', err.message);
     });
 
-    res.json({ message: `Successfully requested generation of ${quantity} coupons.` });
+    res.json({ message: `Successfully activated ${quantity === 1 ? 'Global' : quantity} coupon(s).` });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
