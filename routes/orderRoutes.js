@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const Order = require('../models/Order');
 const { protect, admin } = require('../middleware/authMiddleware');
 const PromotionSetting = require('../models/PromotionSetting');
@@ -18,18 +19,32 @@ router.post('/calculate-checkout', async (req, res) => {
   try {
     const { items, couponCode } = req.body;
     
+    // Optional: Get User ID from token if provided
+    let userId = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        userId = decoded.id;
+      } catch (err) {
+        // Token invalid, ignore user ID
+      }
+    }
+
     // Load Promo Settings
     const promoSettings = await PromotionSetting.findOne({ settingId: 'global_promo_config' }) || { b2g1: { isEnabled: false }, firstOrders: { isEnabled: false } };
 
     // Calculate dynamic total
     const itemTotal = calculateItemPromos(items, promoSettings);
-    const { finalTotal, discountApplied, couponUsed } = await applyGlobalPromos(itemTotal, promoSettings, couponCode);
+    const { finalTotal, discountApplied, couponUsed, error } = await applyGlobalPromos(itemTotal, promoSettings, couponCode, userId);
 
     res.json({
       itemTotal,
       finalTotal,
       discountApplied,
       couponUsed: couponUsed ? couponUsed.code : null,
+      error: error || null,
       promos: {
         b2g1: promoSettings.b2g1.isEnabled,
         firstOrders: promoSettings.firstOrders.isEnabled

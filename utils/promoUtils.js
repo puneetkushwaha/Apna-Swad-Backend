@@ -2,27 +2,40 @@ const Coupon = require('../models/Coupon');
 const Order = require('../models/Order');
 
 /**
- * Calculates the total amount after applying B2G1 and any other item-level promos.
- * @param {Array} items - Cart items
+ * Calculates the total amount after applying B2G1 across all items in the cart.
+ * Strategy: Collect all items into a list, sort by price, and every 3rd item is free.
+ * @param {Array} items - Cart items [{price, quantity, ...}]
  * @param {Object} promoSettings - Global promo settings
- * @returns {Number} - New total amount
+ * @returns {Number} - Total amount after item-level promos
  */
 const calculateItemPromos = (items, promoSettings) => {
-  let total = 0;
-  
+  if (!promoSettings.b2g1 || !promoSettings.b2g1.isEnabled) {
+    return items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  }
+
+  // Create a flat list of all individual units
+  const allUnits = [];
   items.forEach(item => {
-    let quantity = item.quantity;
-    let price = item.price;
-    
-    if (promoSettings.b2g1 && promoSettings.b2g1.isEnabled) {
-      // B2G1: For every 3 items, pay for 2
-      let payableQuantity = Math.floor(quantity / 3) * 2 + (quantity % 3);
-      total += payableQuantity * price;
-    } else {
-      total += quantity * price;
+    for (let i = 0; i < item.quantity; i++) {
+      allUnits.push(item.price);
     }
   });
-  
+
+  // Sort by price high to low
+  allUnits.sort((a, b) => b - a);
+
+  let total = 0;
+  // Every 3rd item (the cheapest in each group of 3) is free
+  for (let i = 0; i < allUnits.length; i++) {
+    // If it's the 3rd, 6th, 9th... item, price is 0 (it's free)
+    // 0-indexed: i=2, i=5, i=8...
+    if ((i + 1) % 3 === 0) {
+      total += 0;
+    } else {
+      total += allUnits[i];
+    }
+  }
+
   return total;
 };
 
@@ -31,9 +44,10 @@ const calculateItemPromos = (items, promoSettings) => {
  * @param {Number} currentTotal - Total after item promos
  * @param {Object} promoSettings - Global promo settings
  * @param {String} couponCode - Optional coupon code
+ * @param {String} userId - The current user ID for single-use check
  * @returns {Object} { finalTotal, discountApplied, couponUsed }
  */
-const applyGlobalPromos = async (currentTotal, promoSettings, couponCode = null) => {
+const applyGlobalPromos = async (currentTotal, promoSettings, couponCode = null, userId = null) => {
   let discountApplied = 0;
   let finalTotal = currentTotal;
   let couponUsed = null;
@@ -55,6 +69,20 @@ const applyGlobalPromos = async (currentTotal, promoSettings, couponCode = null)
     });
 
     if (coupon && coupon.usedCount < coupon.maxUses) {
+      // Check if user has already used this coupon
+      // We check for completed orders by this user with this coupon code
+      if (userId) {
+        const hasUsed = await Order.findOne({ 
+          user: userId, 
+          couponCode: couponCode.toUpperCase(),
+          paymentStatus: { $ne: 'failed' } // Count all except failed
+        });
+        
+        if (hasUsed) {
+          return { finalTotal: currentTotal, discountApplied, couponUsed: null, error: 'You have already used this coupon' };
+        }
+      }
+
       let couponDiscount = 0;
       if (coupon.discountType === 'flat') {
         couponDiscount = coupon.discountValue;
